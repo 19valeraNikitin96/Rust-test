@@ -5,6 +5,7 @@
 #[macro_use] extern crate serde_derive;
 extern crate rocket_multipart_form_data;
 extern crate base64;
+extern crate reqwest;
 
 mod test_api;
 mod test_file_helper;
