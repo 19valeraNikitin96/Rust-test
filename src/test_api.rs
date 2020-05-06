@@ -4,8 +4,8 @@ use rocket::Data;
 use rocket_contrib::json::{Json, JsonValue};
 use rocket::http::ContentType;
 use rocket_multipart_form_data::{MultipartFormDataOptions, MultipartFormData, MultipartFormDataField, RawField};
-use crate::test_file_helper::{load_2, async_load};
-use base64::decode;
+use crate::test_file_helper::{load_2, async_load, image_types};
+use base64::{encode, decode};
 
 #[derive(Serialize, Deserialize)]
 struct Message {
@@ -27,7 +27,6 @@ fn test_hello() -> JsonValue {
     json!({"data": "Hello, Valerii!"})
 }
 
-//request to "/load/image/load/image"
 #[post("/load/image", data = "<data>")]
 fn load(content_type: &ContentType, data: Data) -> JsonValue {
     let mut options = MultipartFormDataOptions::new();
@@ -39,14 +38,14 @@ fn load(content_type: &ContentType, data: Data) -> JsonValue {
     if let Some(raw_photo) = raw_photo {
         match raw_photo {
             RawField::Single(raw) => {
-                let _content_type = &raw.content_type;
+                let content_type = &raw.content_type.as_ref().unwrap().to_string();
                 let _file_name = &raw.file_name;
                 let _raw = &raw.raw;
                 match _file_name {
                     None => println!("None"),
                     Some(filename) => {
-                        let res = load_2(&raw.raw);
-                        return json!({"status": "ok", "code": 200, "image_id": res.unwrap()});
+                        let res = load_2(&content_type, &raw.raw).unwrap();
+                        return json!({"status": "ok", "code": 200, "image_id": res});
                     }
                 };
             }
@@ -60,8 +59,21 @@ fn load(content_type: &ContentType, data: Data) -> JsonValue {
 fn load64(base64json:Json<Base64JSON>) -> JsonValue {
     let mut ids = Vec::new();
     for item in base64json.0.base64{
-        let id = load_2(&decode(item).unwrap()[..]).unwrap();
-        ids.push(id);
+        let pos = item.find(',');
+        if pos == None{
+            continue;
+        }
+        let t1 = &item[0..pos + 1];
+        let b64 = &item[pos + 1..item.len()];
+        for t in image_types(){
+           match t1.contains(t) {
+               true => {
+                   let id = load_2(&t.to_owned(), &decode(&b64).unwrap()[..]).unwrap();
+                   ids.push(id);
+               }
+               _ => {}
+           }
+        }
     }
     json!({"status": "ok", "code": 200, "image_ids": ids})
 }
@@ -82,5 +94,6 @@ pub fn start() {
         .mount("/", routes![test_hello])
         .mount("/", routes![load64])
         .mount("/", routes![load_by_url])
+//        .mount("/", routes![get_thumb])
         .launch();
 }

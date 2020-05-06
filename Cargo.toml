@@ -14,6 +14,5 @@ serde_derive = "1.0.88"
 rocket-multipart-form-data = "0.8.1"
 base64 = "0.12.0"
 uuid = { version = "0.8", features = ["serde", "v4"] }
-#opencv = "0.34"
-#Reqwest lib
 reqwest = { version = "0.10", features = ["blocking", "json"] }
+image = "0.23.4"
