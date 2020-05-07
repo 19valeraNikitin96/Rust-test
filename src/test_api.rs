@@ -36,7 +36,7 @@ fn load(content_type: &ContentType, data: Data) -> JsonValue {
                 let _file_name = &raw.file_name;
                 let _raw = &raw.raw;
                 match _file_name {
-                    None => println!("None"),
+                    None => {},
                     Some(filename) => {
                         let res = load_2(&content_type, &raw.raw).unwrap();
                         return json!({"status": "ok", "code": 200, "image_id": res});

@@ -5,9 +5,7 @@ use std::io::{Write, Read};
 use image::ImageOutputFormat::Png;
 
 pub fn download_thumb_b64_by(image_id:String) -> Result<String, image::ImageError>{
-    println!("Ok");
     let path_to = format!("{}{}{}", "images/", image_id, "-100x100.png");
-    println!("{}", path_to);
     let mut im = image::open(path_to);
     match im {
         Ok(mut opened) => {
@@ -16,11 +14,7 @@ pub fn download_thumb_b64_by(image_id:String) -> Result<String, image::ImageErro
             let b64 = base64::encode(&buf);
             Ok(format!("{}{}", "data:image/png;base64,", b64))
         }
-        Err(err) =>
-            {
-                println!("{:?}", err);
-                Err(err)
-            }
+        Err(err) => Err(err)
     }
 }
 
