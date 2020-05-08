@@ -1,10 +1,11 @@
 
 use std::fs;
 use uuid::Uuid;
-use std::io::{Write, Read};
+use std::io::{Write, Error, ErrorKind};
 use image::ImageOutputFormat::Png;
+use std::collections::HashMap;
 
-pub fn download_thumb_b64_by(image_id:String) -> Result<String, image::ImageError>{
+pub fn download_thumb_b64_by(image_id:String) -> std::io::Result<String>{
     let path_to = format!("{}{}{}", "images/", image_id, "-100x100.png");
     let mut im = image::open(path_to);
     match im {
@@ -14,36 +15,47 @@ pub fn download_thumb_b64_by(image_id:String) -> Result<String, image::ImageErro
             let b64 = base64::encode(&buf);
             Ok(format!("{}{}", "data:image/png;base64,", b64))
         }
-        Err(err) => Err(err)
+        Err(err) => Result::Err(Error::new(ErrorKind::Other, "File not found"))
     }
 }
 
-pub fn image_types()->Vec<&'static str>{
-    vec!["image/gif", "image/png", "image/svg", "image/jpg", "image/jpeg"]
+pub fn image_formats()->HashMap<&'static str, &'static str>{
+    let mut f = HashMap::new();
+    f.insert("gif", "image/gif");
+    f.insert("png", "image/png");
+    f.insert("svg", "image/svg");
+    f.insert("jpg", "image/jpg");
+    f.insert("jpeg", "image/jpeg");
+    f
 }
 
-pub fn async_load(url:String) -> Result<String, Box<dyn std::error::Error>>{
-    let mut resp = reqwest::blocking::get(&url).expect("Request failed");
-    let image_id = Uuid::new_v4().to_string();
-    let mut out = fs::File::create(format!("{}{}", "images/", image_id))?;
-    std::io::copy(&mut resp, &mut out).expect("Failed to copy content");
-    Ok(image_id)
+pub fn upload_by_url(url:String) -> std::io::Result<String>{
+    let last_dot = url.rfind('.').unwrap();
+    let extension = &url[last_dot+1..];
+    println!("{}", extension);
+    match image_formats().get(extension) {
+        Some(data)=> {
+            let mut resp = reqwest::blocking::get(&url).expect("Request failed");
+            let mut bytes = Vec::new();
+            std::io::copy(&mut resp, &mut bytes);
+            upload(data, &bytes)
+        },
+        None => Result::Err(Error::new(ErrorKind::Other, "Undefined type of image"))
+    }
 }
 
-pub fn load_2(file_type:&str, bytes:&[u8]) -> std::io::Result<String>{
-    let end =
+pub fn upload(file_type:&str, bytes:&[u8]) -> std::io::Result<String>{
         match file_type{
-        "image/gif" => ".gif",
-        "image/png" => ".png",
-        "image/jpg" => ".jpg",
-        "image/jpeg" => ".jpeg",
-            _ => ""
-        };
-    write(end, bytes)
+        "image/gif"  => write(".gif", bytes),
+        "image/png"  => write(".png", bytes),
+        "image/jpg"  => write(".jpg", bytes),
+        "image/jpeg" => write(".jpeg", bytes),
+        "image/svg"  => write(".svg", bytes),
+            _ => Result::Err(Error::new(ErrorKind::Other, "Undefined type of image"))
+        }
 }
 
 fn write(end:&str, bytes:&[u8]) -> std::io::Result<String>{
-    fs::create_dir("images");
     let image_id = Uuid::new_v4().to_string();
     let path_im = format!("{}{}{}", "images/", image_id, end);
     let mut file = fs::File::create(&path_im).unwrap();
@@ -54,9 +66,8 @@ fn write(end:&str, bytes:&[u8]) -> std::io::Result<String>{
     Ok(image_id)
 }
 
-fn create_thumb(src_path:&String, dest_path:&String) -> std::io::Result<()>{
+fn create_thumb(src_path:&String, dest_path:&String){
     let src = image::open(src_path).unwrap();
     let thumb = src.thumbnail(100, 100);
     thumb.save_with_format(dest_path, image::ImageFormat::Png);
-    Ok(())
 }
